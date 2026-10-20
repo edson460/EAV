@@ -1,0 +1,6 @@
+{
+  "name": "Nova Workspace",
+  "description": "A modern, modular workspace and productivity studio ready for custom development.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
