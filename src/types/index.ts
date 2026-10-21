@@ -1,3 +1,16 @@
+export type UserRole = 'principal' | 'registrar' | 'bursar' | 'warden';
+
+export interface UserAccount {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  password?: string;
+  avatarUrl?: string;
+  created_at?: string;
+}
+
 export type TradeCode = 'SOD' | 'BCN' | 'ANH' | 'AGR';
 
 export interface TradeInfo {

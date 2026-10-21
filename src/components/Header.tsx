@@ -1,4 +1,5 @@
 import React from 'react';
+import { UserAccount } from './AuthModal';
 import { 
   GraduationCap, 
   Search, 
@@ -12,7 +13,10 @@ import {
   MessageSquare, 
   BarChart3,
   Building2,
-  Sparkles
+  Sparkles,
+  LogIn,
+  LogOut,
+  UserCheck
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -23,6 +27,9 @@ interface HeaderProps {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   onOpenSummary: () => void;
+  currentUser: UserAccount | null;
+  onOpenAuth: () => void;
+  onLogout: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,6 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   setSearchQuery,
   onOpenSummary,
+  currentUser,
+  onOpenAuth,
+  onLogout,
 }) => {
   const tabs = [
     {
@@ -83,6 +93,12 @@ export const Header: React.FC<HeaderProps> = ({
       nameRw: 'Raporo & Ibyemezo',
       nameEn: 'RTB Reports & Letters',
       icon: BarChart3,
+    },
+    {
+      id: 'login',
+      nameRw: currentUser ? 'Konti Yanjye' : 'Kwinjira / Kwiyandikisha',
+      nameEn: currentUser ? 'My Account' : 'Sign In / Register',
+      icon: currentUser ? UserCheck : LogIn,
     },
   ];
 
@@ -164,14 +180,50 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Quick summary trigger button */}
             <button
               onClick={onOpenSummary}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-600 text-white shadow-xs transition-colors cursor-pointer"
               title={lang === 'rw' ? 'Reba Incamake y\'Inyandiko & Imbogamizi 8' : 'View Document Summary & 8 Challenges'}
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">
-                {lang === 'rw' ? 'Incamake y\'Imbogamizi 8' : '8 Challenges Summary'}
+                {lang === 'rw' ? 'Incamake' : 'Summary'}
               </span>
             </button>
+
+            {/* Authentication Login / User Badge */}
+            {currentUser ? (
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+                <div 
+                  onClick={onOpenAuth}
+                  className="flex items-center gap-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 py-1 px-2.5 rounded-lg text-xs cursor-pointer transition-colors"
+                  title={`${currentUser.name} (${currentUser.email})`}
+                >
+                  <div className="w-6 h-6 rounded-full bg-emerald-700 text-white font-bold text-[10px] flex items-center justify-center flex-shrink-0 shadow-xs">
+                    {currentUser.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="hidden sm:block text-left">
+                    <span className="font-bold text-slate-800 text-[11px] block leading-none">{currentUser.name}</span>
+                    <span className="text-[9px] text-emerald-700 font-bold uppercase">{currentUser.role}</span>
+                  </div>
+                </div>
+                {/* Prominent Logout Button */}
+                <button
+                  onClick={onLogout}
+                  className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+                  title={lang === 'rw' ? 'Sohoka muri Sisitemu (Logout)' : 'Log Out of System'}
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                  <span>{lang === 'rw' ? 'Sohoka' : 'Logout'}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenAuth}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white shadow-xs transition-colors cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>{lang === 'rw' ? 'Kwinjira (Login)' : 'Sign In'}</span>
+              </button>
+            )}
           </div>
         </div>
 

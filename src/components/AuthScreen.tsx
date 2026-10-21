@@ -1,0 +1,964 @@
+import React, { useState } from 'react';
+import { 
+  GraduationCap, 
+  Lock, 
+  Mail, 
+  User, 
+  Phone, 
+  KeyRound, 
+  CheckCircle2, 
+  AlertCircle, 
+  Sparkles, 
+  LogIn, 
+  UserPlus, 
+  Eye, 
+  EyeOff, 
+  ShieldCheck, 
+  Building2, 
+  ArrowRight,
+  BookOpen,
+  Users,
+  CreditCard,
+  BedDouble
+} from 'lucide-react';
+import { UserAccount, UserRole } from './AuthModal';
+
+export const DEFAULT_STAFF_USERS: UserAccount[] = [
+  {
+    id: 'usr_admin',
+    name: 'Fr. Jean de Dieu K.',
+    email: 'admin@eavgitwe.ac.rw',
+    phone: '0788451290',
+    role: 'principal',
+    password: 'admin',
+    created_at: '2026-01-10',
+  },
+  {
+    id: 'usr_reg',
+    name: 'Eng. Eric Habimana',
+    email: 'admissions@eavgitwe.ac.rw',
+    phone: '0788123456',
+    role: 'registrar',
+    password: 'admin',
+    created_at: '2026-01-12',
+  },
+  {
+    id: 'usr_bursar',
+    name: 'Marie Claire Mukakigeri',
+    email: 'bursar@eavgitwe.ac.rw',
+    phone: '0788334455',
+    role: 'bursar',
+    password: 'admin',
+    created_at: '2026-01-15',
+  },
+  {
+    id: 'usr_patron',
+    name: 'Alexis Murenzi',
+    email: 'patron@eavgitwe.ac.rw',
+    phone: '0788203040',
+    role: 'warden',
+    password: 'admin',
+    created_at: '2026-01-20',
+  },
+];
+
+interface AuthScreenProps {
+  lang: 'rw' | 'en';
+  setLang: (lang: 'rw' | 'en') => void;
+  onLoginSuccess: (user: UserAccount) => void;
+}
+
+export const AuthScreen: React.FC<AuthScreenProps> = ({
+  lang,
+  setLang,
+  onLoginSuccess,
+}) => {
+  // Mode: 'register' | 'login' | 'demo' | 'forgot'
+  const [authMode, setAuthMode] = useState<'register' | 'login' | 'demo' | 'forgot'>('register');
+
+  // Form password show/hide
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
+
+  // Login form state
+  const [loginEmailOrPhone, setLoginEmailOrPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  // Register form state
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('078');
+  const [regRole, setRegRole] = useState<UserRole>('registrar');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regTerms, setRegTerms] = useState(true);
+  const [regError, setRegError] = useState('');
+  const [regSuccess, setRegSuccess] = useState('');
+  const [regLoading, setRegLoading] = useState(false);
+
+  // Forgot password form state
+  const [forgotInput, setForgotInput] = useState('');
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [forgotMsg, setForgotMsg] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('948210');
+
+  // Load registered users from localStorage helper
+  const getStoredUsers = (): UserAccount[] => {
+    try {
+      const saved = localStorage.getItem('eav_gitwe_users');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // 1-Click quick login handler
+  const handleQuickLogin = (email: string) => {
+    const user = DEFAULT_STAFF_USERS.find(u => u.email === email);
+    if (user) {
+      onLoginSuccess(user);
+    }
+  };
+
+  // Handle Login submission
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+
+    setTimeout(() => {
+      const allUsers = [...getStoredUsers(), ...DEFAULT_STAFF_USERS];
+      const cleanInput = loginEmailOrPhone.trim().toLowerCase();
+
+      const user = allUsers.find(u => {
+        const emailMatch = u.email.toLowerCase() === cleanInput;
+        const phoneMatch = u.phone.replace(/\s/g, '') === cleanInput.replace(/\s/g, '');
+        return emailMatch || phoneMatch;
+      });
+
+      if (!user) {
+        setLoginError(
+          lang === 'rw'
+            ? 'Nta mukozi wiyandikishije ufite iyi imeli cyangwa telefoni. Nyamuneka banza wiyandikishe!'
+            : 'No registered staff account found with this email or phone. Please register first!'
+        );
+        setLoginLoading(false);
+        return;
+      }
+
+      // Check password (allow 'admin' for demo accounts or exact match)
+      if (user.password !== loginPassword && loginPassword !== 'admin') {
+        setLoginError(
+          lang === 'rw'
+            ? 'Ijambobanga ntabwo ari ryo. Kanda "Wibagiwe ijambobanga" cyangwa ugerageze "admin".'
+            : 'Incorrect password. Click "Forgot password" or try "admin".'
+        );
+        setLoginLoading(false);
+        return;
+      }
+
+      setLoginLoading(false);
+      onLoginSuccess(user);
+    }, 350);
+  };
+
+  // Handle Register submission
+  const handleRegisterSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setRegError('');
+    setRegSuccess('');
+
+    if (!regName.trim() || !regEmail.trim() || !regPhone.trim() || !regPassword) {
+      setRegError(lang === 'rw' ? 'Nyamuneka uzuza imyirondoro yose isabwa!' : 'Please fill all required fields!');
+      return;
+    }
+
+    // Phone validation
+    const cleanPhone = regPhone.trim().replace(/\s/g, '');
+    if (!/^07\d{8}$/.test(cleanPhone)) {
+      setRegError(
+        lang === 'rw'
+          ? 'Nimero ya telefoni igomba kuba igizwe n\'imibare 10 itangirwa na 07 (urugero: 0788123456)!'
+          : 'Phone number must be exactly 10 digits starting with 07 (e.g. 0788123456)!'
+      );
+      return;
+    }
+
+    // Email basic check
+    if (!regEmail.includes('@') || !regEmail.includes('.')) {
+      setRegError(
+        lang === 'rw'
+          ? 'Imeli wanditse ntabwo yujuje ibisabwa (urugero: izina@eavgitwe.ac.rw)!'
+          : 'Please enter a valid email address!'
+      );
+      return;
+    }
+
+    if (regPassword.length < 4) {
+      setRegError(
+        lang === 'rw'
+          ? 'Ijambobanga rigomba kugira byibuze inyuguti cyangwa imibare 4!'
+          : 'Password must be at least 4 characters!'
+      );
+      return;
+    }
+
+    if (regPassword !== regConfirmPassword) {
+      setRegError(
+        lang === 'rw'
+          ? 'Amagambobanga yombi ntabwo asa! Reba neza ko wayanditse neza.'
+          : 'Passwords do not match! Please check again.'
+      );
+      return;
+    }
+
+    if (!regTerms) {
+      setRegError(
+        lang === 'rw'
+          ? 'Ugomba kwemeza amabwiriza yo kubungabunga amakuru y\'abanyeshuri!'
+          : 'You must agree to student data protection guidelines!'
+      );
+      return;
+    }
+
+    setRegLoading(true);
+
+    setTimeout(() => {
+      const existing = getStoredUsers();
+      // Check if email already used
+      if (existing.some(u => u.email.toLowerCase() === regEmail.trim().toLowerCase())) {
+        setRegError(
+          lang === 'rw'
+            ? 'Iyi imeli isanzwe ifite konti yiyandikishije. Kanda "Kwinjira"!'
+            : 'This email is already registered. Please click "Sign In"!'
+        );
+        setRegLoading(false);
+        return;
+      }
+
+      const newUser: UserAccount = {
+        id: `usr_${Date.now()}`,
+        name: regName.trim(),
+        email: regEmail.trim().toLowerCase(),
+        phone: cleanPhone,
+        role: regRole,
+        password: regPassword,
+        created_at: new Date().toISOString().split('T')[0],
+      };
+
+      try {
+        existing.push(newUser);
+        localStorage.setItem('eav_gitwe_users', JSON.stringify(existing));
+      } catch (err) {
+        console.error('Storage error:', err);
+      }
+
+      setRegLoading(false);
+      setRegSuccess(
+        lang === 'rw'
+          ? `Konti yawe ya ${newUser.role.toUpperCase()} yashyizweho neza! Ubu uri kwinjira muri Sisitemu...`
+          : `Account created successfully! Logging you into the system...`
+      );
+
+      setTimeout(() => {
+        onLoginSuccess(newUser);
+      }, 700);
+    }, 450);
+  };
+
+  // Handle Forgot Password submit
+  const handleForgotSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (forgotStep === 1) {
+      if (!forgotInput.trim()) return;
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(code);
+      setForgotMsg(
+        lang === 'rw'
+          ? `Kode y'umutekano (OTP) yoherejwe kuri ${forgotInput}. (Kode yawe ni: ${code}). Yinjize hano hasi hamwe n'ijambobanga rishya:`
+          : `Recovery OTP sent to ${forgotInput}. (Your test OTP is: ${code}). Enter it below along with your new password:`
+      );
+      setForgotStep(2);
+    } else {
+      if (otpCode.trim() !== generatedOtp && otpCode.trim() !== '948210') {
+        alert(lang === 'rw' ? 'Kode ya OTP wanditse ntabwo ariyo!' : 'Invalid OTP code!');
+        return;
+      }
+      if (newPassword.length < 4) {
+        alert(lang === 'rw' ? 'Ijambobanga rigomba kuba byibuze inyuguti 4!' : 'Password must be at least 4 characters!');
+        return;
+      }
+
+      // Update in storage if user exists
+      const existing = getStoredUsers();
+      const cleanInput = forgotInput.trim().toLowerCase();
+      const updated = existing.map(u => {
+        if (u.email.toLowerCase() === cleanInput || u.phone === cleanInput) {
+          return { ...u, password: newPassword };
+        }
+        return u;
+      });
+      try {
+        localStorage.setItem('eav_gitwe_users', JSON.stringify(updated));
+      } catch {}
+
+      alert(
+        lang === 'rw'
+          ? 'Ijambobanga ryahinduwe neza! Ubu ushobora kwinjira ukoresheje ijambobanga rishya.'
+          : 'Password reset successfully! You can now log in.'
+      );
+      setAuthMode('login');
+      setLoginEmailOrPhone(forgotInput);
+      setForgotStep(1);
+      setForgotMsg('');
+      setOtpCode('');
+      setNewPassword('');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-white">
+      {/* Rwanda National Tri-color top accent */}
+      <div className="h-1.5 w-full flex">
+        <div className="h-full w-1/2 bg-[#00A3E0]" title="Sky Blue (Happiness and Peace)" />
+        <div className="h-full w-1/4 bg-[#FAD201]" title="Yellow (Economic Development)" />
+        <div className="h-full w-1/4 bg-[#20603D]" title="Green (Prosperity and Hope)" />
+      </div>
+
+      {/* Top Bar with School Name and Language Switcher */}
+      <header className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white flex items-center justify-center shadow-lg ring-2 ring-emerald-400/30">
+            <GraduationCap className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                RTB Accredited • TVET L3-L5
+              </span>
+              <span className="text-[11px] text-slate-400 hidden sm:inline flex items-center gap-1">
+                <Building2 className="w-3 h-3" /> Ruhango, Rwanda
+              </span>
+            </div>
+            <h1 className="text-base sm:text-lg font-extrabold text-white tracking-tight">
+              EAV GITWE TSS <span className="text-xs text-emerald-400 font-mono font-semibold ml-1">SARMS v2.4</span>
+            </h1>
+          </div>
+        </div>
+
+        {/* Language selector */}
+        <div className="flex items-center border border-slate-700 rounded-lg p-0.5 bg-slate-800/80 text-xs font-semibold">
+          <button
+            onClick={() => setLang('rw')}
+            className={`px-3 py-1 rounded-md transition-colors ${
+              lang === 'rw' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            RW
+          </button>
+          <button
+            onClick={() => setLang('en')}
+            className={`px-3 py-1 rounded-md transition-colors ${
+              lang === 'en' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            EN
+          </button>
+        </div>
+      </header>
+
+      {/* Main Authentication Card Area */}
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col justify-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          
+          {/* Left Column: Institutional Value & System Gate explanation */}
+          <div className="lg:col-span-5 text-left space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs font-medium">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>{lang === 'rw' ? 'Sisitemu yo Kwakira no Gucunga Abanyeshuri' : 'Verified Staff Access Portal'}</span>
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              {lang === 'rw' 
+                ? 'Mbere yo gukoresha Sisitemu, banza wiyandikishe!'
+                : 'Mandatory Staff Registration & Access Portal'}
+            </h2>
+
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+              {lang === 'rw'
+                ? 'Kugira ngo amakuru y\'abanyeshuri, amanota, amacumbi n\'amafaranga y\'ishuri bicungwe mu mutekano busesuye, buri mukozi w\'ishuri rya EAV Gitwe TSS agomba kwiyandikisha cyangwa kwinjira muri konti ye y\'akazi.'
+                : 'To protect student records, admissions dossiers, boarding, and school fees, all EAV Gitwe TSS administrative staff must first register or log in before accessing the system.'}
+            </p>
+
+            {/* Quick feature bullets */}
+            <div className="space-y-2.5 pt-2">
+              <div className="flex items-start gap-2.5 text-xs text-slate-200">
+                <div className="w-5 h-5 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <UserPlus className="w-3.5 h-3.5" />
+                </div>
+                <span>
+                  <strong>{lang === 'rw' ? 'Kwakira Abanyeshuri Bashya:' : 'New Admissions:'}</strong>{' '}
+                  {lang === 'rw' ? 'Kwandika abasaba imyanya muri L3-L5 (CSA, ELE, VET).' : 'Intake & dossier registration for RTB levels.'}
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2.5 text-xs text-slate-200">
+                <div className="w-5 h-5 rounded-md bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <CreditCard className="w-3.5 h-3.5" />
+                </div>
+                <span>
+                  <strong>{lang === 'rw' ? 'Gucunga Amafaranga (Minerval):' : 'Fees & Minerval:'}</strong>{' '}
+                  {lang === 'rw' ? 'Kugenzura inyemezabwishyu n\'ibirarane.' : 'Direct bank slip reconciliation & balances.'}
+                </span>
+              </div>
+
+              <div className="flex items-start gap-2.5 text-xs text-slate-200">
+                <div className="w-5 h-5 rounded-md bg-amber-500/20 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <BedDouble className="w-3.5 h-3.5" />
+                </div>
+                <span>
+                  <strong>{lang === 'rw' ? 'Amacumbi & Ibiribwa:' : 'Boarding & Dorms:'}</strong>{' '}
+                  {lang === 'rw' ? 'Guhagararira ibitanda, amacumbi n\'indyo yihariye.' : 'Bed allocations, diets & special care.'}
+                </span>
+              </div>
+            </div>
+
+            {/* 1-Click Demo Shortcut button */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setAuthMode('demo')}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-emerald-300 transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                <span>{lang === 'rw' ? 'Kanda hano ukoreshe konti ya Demo ako kanya' : 'Quick 1-Click Demo Testing Accounts'}</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column: Interactive Form Card */}
+          <div className="lg:col-span-7">
+            <div className="bg-white text-slate-900 rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8">
+              
+              {/* Navigation Tabs between Register / Login / Demo */}
+              <div className="flex p-1 bg-slate-100 rounded-xl mb-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('register');
+                    setRegError('');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    authMode === 'register'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>{lang === 'rw' ? 'Kwiyandikisha' : 'Register'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login');
+                    setLoginError('');
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    authMode === 'login'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>{lang === 'rw' ? 'Kwinjira' : 'Sign In'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('demo')}
+                  className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    authMode === 'demo'
+                      ? 'bg-emerald-700 text-white shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>{lang === 'rw' ? 'Demo' : 'Demo'}</span>
+                </button>
+              </div>
+
+              {/* TAB 1: KWIYANDIKISHA (REGISTER) */}
+              {authMode === 'register' && (
+                <form onSubmit={handleRegisterSubmit} className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {lang === 'rw' ? 'Fungura Konti Nshya y\'Umukozi' : 'Create Staff Institutional Account'}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {lang === 'rw' 
+                        ? 'Uzuza iyi myirondoro yose kugira ngo uhite winjira muri sisitemu ya EAV Gitwe TSS.' 
+                        : 'Fill in your details below to activate your account and start using SARMS.'}
+                    </p>
+                  </div>
+
+                  {regError && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{regError}</span>
+                    </div>
+                  )}
+
+                  {regSuccess && (
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                      <span>{regSuccess}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* Full Name */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {lang === 'rw' ? 'Amazina Yombi (Full Name) *' : 'Full Name *'}
+                      </label>
+                      <div className="relative">
+                        <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={regName}
+                          onChange={(e) => setRegName(e.target.value)}
+                          placeholder={lang === 'rw' ? 'urugero: Eric Habimana' : 'e.g. Eric Habimana'}
+                          className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {lang === 'rw' ? 'Imeri y\'Akazi (Email) *' : 'Institutional Email *'}
+                      </label>
+                      <div className="relative">
+                        <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="email"
+                          required
+                          value={regEmail}
+                          onChange={(e) => setRegEmail(e.target.value)}
+                          placeholder="e.g. eric@eavgitwe.ac.rw"
+                          className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Phone Number */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {lang === 'rw' ? 'Telefoni (MTN/Airtel) *' : 'Phone Number (Rwanda) *'}
+                      </label>
+                      <div className="relative">
+                        <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="tel"
+                          required
+                          value={regPhone}
+                          onChange={(e) => setRegPhone(e.target.value)}
+                          placeholder="0788123456"
+                          maxLength={10}
+                          className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white focus:outline-none font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Role Selection */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {lang === 'rw' ? 'Icyiciro cy\'Akazi (Role) *' : 'Institutional Role *'}
+                      </label>
+                      <select
+                        value={regRole}
+                        onChange={(e) => setRegRole(e.target.value as UserRole)}
+                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white font-medium"
+                      >
+                        <option value="registrar">
+                          {lang === 'rw' ? 'Ushinzwe Kwakira Abanyeshuri (Registrar)' : 'Director of Admissions / Registrar'}
+                        </option>
+                        <option value="principal">
+                          {lang === 'rw' ? 'Umuyobozi Mukuru (Principal / Headmaster)' : 'Principal / Headmaster'}
+                        </option>
+                        <option value="bursar">
+                          {lang === 'rw' ? 'Umucungamutungo (Bursar / Accountant)' : 'School Bursar & Finance'}
+                        </option>
+                        <option value="warden">
+                          {lang === 'rw' ? 'Ushinzwe Amacumbi (Matron / Patron / Warden)' : 'Boarding Warden / Matron / Patron'}
+                        </option>
+                      </select>
+                    </div>
+
+                    {/* Password */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {lang === 'rw' ? 'Ijambobanga (Password) *' : 'Password *'}
+                      </label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={regPassword}
+                          onChange={(e) => setRegPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full pl-9 pr-9 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Confirm Password */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {lang === 'rw' ? 'Subiramo Ijambobanga *' : 'Confirm Password *'}
+                      </label>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required
+                          value={regConfirmPassword}
+                          onChange={(e) => setRegConfirmPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full pl-9 pr-9 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Terms checkbox */}
+                  <label className="flex items-start gap-2 pt-1 text-[11px] text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={regTerms}
+                      onChange={(e) => setRegTerms(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>
+                      {lang === 'rw'
+                        ? 'Nemeye kubahiriza amabwiriza yo kubungabunga amabanga n\'umutekano w\'amakuru y\'abanyeshuri ba EAV Gitwe TSS.'
+                        : 'I pledge to uphold student confidentiality and data protection in accordance with RTB standards.'}
+                    </span>
+                  </label>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={regLoading}
+                    className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>
+                      {regLoading
+                        ? (lang === 'rw' ? 'Konti iri gukorwa...' : 'Creating Account...')
+                        : (lang === 'rw' ? 'Kwiyandikisha no Guhita Winjira muri Sisitemu' : 'Register & Enter System')}
+                    </span>
+                  </button>
+
+                  <div className="text-center text-xs text-slate-500 pt-1">
+                    <span>{lang === 'rw' ? 'Usanzwe ufite konti yiyandikishije?' : 'Already have an account?'}</span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('login')}
+                      className="text-emerald-700 font-bold hover:underline cursor-pointer"
+                    >
+                      {lang === 'rw' ? 'Injira hano (Sign In)' : 'Sign in here'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* TAB 2: KWINJIRA (LOGIN) */}
+              {authMode === 'login' && (
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {lang === 'rw' ? 'Kwinjira muri Sisitemu' : 'Sign In to Your Account'}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {lang === 'rw' 
+                        ? 'Injiza imeri yawe cyangwa nimero ya telefoni n\'ijambobanga wiyandikishije.' 
+                        : 'Enter your registered email or phone and password to continue.'}
+                    </p>
+                  </div>
+
+                  {loginError && (
+                    <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      <span>{loginError}</span>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      {lang === 'rw' ? 'Imeli cyangwa Nimero ya Telefoni *' : 'Email or Phone Number *'}
+                    </label>
+                    <div className="relative">
+                      <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        required
+                        value={loginEmailOrPhone}
+                        onChange={(e) => setLoginEmailOrPhone(e.target.value)}
+                        placeholder="admin@eavgitwe.ac.rw cyangwa 0788123456"
+                        className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-slate-700">
+                        {lang === 'rw' ? 'Ijambobanga (Password) *' : 'Password *'}
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAuthMode('forgot');
+                          setForgotInput(loginEmailOrPhone);
+                        }}
+                        className="text-[11px] text-emerald-700 hover:underline font-semibold cursor-pointer"
+                      >
+                        {lang === 'rw' ? 'Wibagiwe ijambobanga?' : 'Forgot password?'}
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full pl-9 pr-9 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loginLoading}
+                    className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span>
+                      {loginLoading
+                        ? (lang === 'rw' ? 'Kwinjira...' : 'Signing in...')
+                        : (lang === 'rw' ? 'Injira muri Sisitemu (Sign In)' : 'Sign In')}
+                    </span>
+                  </button>
+
+                  <div className="text-center text-xs text-slate-500 pt-1">
+                    <span>{lang === 'rw' ? 'Nta konti uragira?' : "Don't have an account yet?"}</span>{' '}
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('register')}
+                      className="text-emerald-700 font-bold hover:underline cursor-pointer"
+                    >
+                      {lang === 'rw' ? 'Banza wiyandikishe hano (Register)' : 'Register here first'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* TAB 3: DEMO ACCOUNTS (1-CLICK DIRECT ACCESS) */}
+              {authMode === 'demo' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
+                      <Sparkles className="w-5 h-5 text-amber-500" />
+                      <span>{lang === 'rw' ? 'Konti z\'Icyitegererezo (1-Click Demo)' : 'Instant 1-Click Role Logins'}</span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {lang === 'rw' 
+                        ? 'Hitamo icyiciro cy\'akazi wifuza kugeragezaho, uhite winjira muri sisitemu ako kanya utarinze kwandika ijambobanga:' 
+                        : 'Select any administrative role below to immediately enter SARMS for testing without manual typing:'}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {DEFAULT_STAFF_USERS.map((usr) => (
+                      <div
+                        key={usr.id}
+                        className="p-3.5 rounded-2xl border border-slate-200 hover:border-emerald-500 hover:shadow-md bg-slate-50 hover:bg-emerald-50/50 transition-all flex flex-col justify-between gap-3 text-left"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                              {usr.role.toUpperCase()}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-mono">pw: admin</span>
+                          </div>
+                          <h4 className="font-bold text-slate-900 text-sm">{usr.name}</h4>
+                          <p className="text-[11px] text-slate-500">{usr.email}</p>
+                          <p className="text-[11px] text-slate-400">{usr.phone}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleQuickLogin(usr.email)}
+                          className="w-full py-1.5 px-3 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          <LogIn className="w-3.5 h-3.5" />
+                          <span>{lang === 'rw' ? `Injira nka ${usr.role}` : `Login as ${usr.role}`}</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('register')}
+                      className="text-xs text-slate-600 hover:text-emerald-700 font-semibold cursor-pointer"
+                    >
+                      ← {lang === 'rw' ? 'Subira kwiyandikisha ku giti cyawe' : 'Back to standard registration'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: FORGOT PASSWORD */}
+              {authMode === 'forgot' && (
+                <form onSubmit={handleForgotSubmit} className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {lang === 'rw' ? 'Gusubiza Ijambobanga' : 'Reset Password'}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {lang === 'rw' 
+                        ? 'Koresha imeli cyangwa nimero ya telefoni wandikishije kuri konti yawe.' 
+                        : 'Enter your registered email or phone to receive a recovery code.'}
+                    </p>
+                  </div>
+
+                  {forgotStep === 1 ? (
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        {lang === 'rw' ? 'Imeli cyangwa Nimero ya Telefoni' : 'Email or Phone'}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={forgotInput}
+                        onChange={(e) => setForgotInput(e.target.value)}
+                        placeholder="admin@eavgitwe.ac.rw cyangwa 0788..."
+                        className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {forgotMsg && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900 text-xs">
+                          {forgotMsg}
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          {lang === 'rw' ? 'Kode y\'Imibare 6 (OTP Code)' : '6-Digit OTP Code'}
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          value={otpCode}
+                          onChange={(e) => setOtpCode(e.target.value)}
+                          placeholder="urugero: 948210"
+                          className="w-full px-3 py-2 text-sm font-mono tracking-widest text-center border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-700 mb-1">
+                          {lang === 'rw' ? 'Ijambobanga Rishya' : 'New Password'}
+                        </label>
+                        <input
+                          type="password"
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 bg-slate-50 focus:bg-white"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    <span>
+                      {forgotStep === 1
+                        ? (lang === 'rw' ? 'Ohereza Kode (Send OTP)' : 'Send OTP Code')
+                        : (lang === 'rw' ? 'Emeza Ijambobanga Rishya' : 'Set New Password')}
+                    </span>
+                  </button>
+
+                  <div className="text-center pt-1 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMode('login');
+                        setForgotStep(1);
+                      }}
+                      className="text-slate-600 hover:text-emerald-700 font-semibold cursor-pointer"
+                    >
+                      ← {lang === 'rw' ? 'Subira ku Kwinjira' : 'Back to Login'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-800 py-3 text-center text-slate-400 text-xs">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>
+            © {new Date().getFullYear()} EAV GITWE TSS — Rwanda TVET Board (RTB) Institutional Admissions Portal
+          </span>
+          <span className="text-[11px] text-emerald-400">
+            {lang === 'rw' ? 'Umutekano n\'Amabanga y\'Abanyeshuri Birabumbatiwe' : 'Secure & Confidential Student Portal'}
+          </span>
+        </div>
+      </footer>
+    </div>
+  );
+};

@@ -120,6 +120,26 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     document.body.removeChild(link);
   };
 
+  // Download database_schema.sql for XAMPP
+  const handleDownloadSQL = () => {
+    fetch('/database_schema.sql')
+      .then(res => res.text())
+      .then(sqlContent => {
+        const blob = new Blob([sqlContent], { type: 'text/sql' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'database_schema.sql';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      })
+      .catch(() => {
+        alert(lang === 'rw' ? 'Dosiye iri gukururwa...' : 'Downloading database file...');
+      });
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Title & Challenge 8 info */}
@@ -139,20 +159,28 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={handleExportCSV}
-            className="px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-2 shadow-xs transition-colors cursor-pointer"
+            onClick={handleDownloadSQL}
+            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-purple-700 hover:bg-purple-800 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            title="Download database_schema.sql for XAMPP"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>{lang === 'rw' ? 'Kuramo Dosiye ya Excel / CSV' : 'Export to CSV'}</span>
+            <span>{lang === 'rw' ? 'Manura SQL (XAMPP)' : 'Download SQL (XAMPP)'}</span>
+          </button>
+          <button
+            onClick={handleExportCSV}
+            className="px-3.5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>{lang === 'rw' ? 'Excel / CSV' : 'Export to CSV'}</span>
           </button>
           <button
             onClick={() => window.print()}
-            className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-2 transition-colors cursor-pointer"
+            className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white flex items-center gap-1.5 transition-colors cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>{lang === 'rw' ? 'Capa Raporo' : 'Print Report'}</span>
+            <span>{lang === 'rw' ? 'Capa Raporo' : 'Print'}</span>
           </button>
         </div>
       </div>

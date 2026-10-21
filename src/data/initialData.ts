@@ -1,4 +1,39 @@
-import { TradeInfo, StudentRecord, DormitoryBlock, SmsNotification, StudentDocument } from '../types';
+import { TradeInfo, StudentRecord, DormitoryBlock, SmsNotification, StudentDocument, UserAccount } from '../types';
+
+export const DEFAULT_USERS: UserAccount[] = [
+  {
+    id: 'usr_admin',
+    name: 'Fr. Jean de Dieu K.',
+    email: 'admin@eavgitwe.ac.rw',
+    phone: '0788451290',
+    role: 'principal',
+    password: 'admin',
+  },
+  {
+    id: 'usr_reg',
+    name: 'Eng. Eric Habimana',
+    email: 'admissions@eavgitwe.ac.rw',
+    phone: '0788123456',
+    role: 'registrar',
+    password: 'admin',
+  },
+  {
+    id: 'usr_bursar',
+    name: 'Marie Claire Mukakigeri',
+    email: 'bursar@eavgitwe.ac.rw',
+    phone: '0788334455',
+    role: 'bursar',
+    password: 'admin',
+  },
+  {
+    id: 'usr_patron',
+    name: 'Alexis Murenzi',
+    email: 'patron@eavgitwe.ac.rw',
+    phone: '0788203040',
+    role: 'warden',
+    password: 'admin',
+  },
+];
 
 export const TRADES: TradeInfo[] = [
   {

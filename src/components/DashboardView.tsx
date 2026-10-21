@@ -21,7 +21,9 @@ import {
   Send,
   Building2,
   TrendingUp,
-  Download
+  Download,
+  Edit2,
+  Trash2
 } from 'lucide-react';
 
 interface DashboardViewProps {
@@ -31,6 +33,8 @@ interface DashboardViewProps {
   onNavigateTab: (tabId: string) => void;
   onSelectStudent: (student: StudentRecord) => void;
   onOpenLetter: (student: StudentRecord) => void;
+  onEditStudent: (student: StudentRecord) => void;
+  onDeleteStudent: (studentId: string) => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -40,6 +44,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateTab,
   onSelectStudent,
   onOpenLetter,
+  onEditStudent,
+  onDeleteStudent,
 }) => {
   // Calculations
   const totalStudents = students.length;
@@ -430,17 +436,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => onSelectStudent(student)}
-                          className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-[11px] transition-colors"
+                          className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-[11px] transition-colors cursor-pointer"
                           title={lang === 'rw' ? 'Reba Dosiye' : 'View File'}
                         >
                           {lang === 'rw' ? 'Reba' : 'View'}
                         </button>
                         <button
                           onClick={() => onOpenLetter(student)}
-                          className="px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-medium text-[11px] transition-colors"
+                          className="px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-medium text-[11px] transition-colors cursor-pointer"
                           title={lang === 'rw' ? 'Ibaruwa yo Kwemererwa' : 'Admission Letter'}
                         >
                           {lang === 'rw' ? 'Ibaruwa' : 'Letter'}
+                        </button>
+                        <button
+                          onClick={() => onEditStudent(student)}
+                          className="p-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 transition-colors cursor-pointer"
+                          title={lang === 'rw' ? 'Vugurura Dosiye (Edit/Update)' : 'Edit/Update Student'}
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            const conf = lang === 'rw' 
+                              ? `Urashaka gusiba ${student.firstName} ${student.lastName}?` 
+                              : `Delete ${student.firstName} ${student.lastName}?`;
+                            if (confirm(conf)) {
+                              onDeleteStudent(student.id);
+                            }
+                          }}
+                          className="p-1 rounded bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer"
+                          title={lang === 'rw' ? 'Siba (Delete)' : 'Delete Student'}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>

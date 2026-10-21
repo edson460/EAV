@@ -74,6 +74,10 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const [notes, setNotes] = useState('');
   const [submittedStudent, setSubmittedStudent] = useState<StudentRecord | null>(null);
 
+  // Validation Error States
+  const [nidError, setNidError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+
   const toggleDoc = (docId: string) => {
     setDocsStatus(prev => ({ ...prev, [docId]: !prev[docId] }));
   };
@@ -81,8 +85,33 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    setNidError('');
+    setPhoneError('');
+
     if (!firstName.trim() || !lastName.trim() || !nationalIdOrIndex.trim() || !parentPhone.trim()) {
       alert(lang === 'rw' ? 'Nyamuneka uzuza imyirondoro yose y\'ingenzi' : 'Please fill all required personal fields');
+      return;
+    }
+
+    // Condition 1: National ID must be exactly 16 digits
+    const cleanNid = nationalIdOrIndex.trim().replace(/\s/g, '');
+    if (!/^\d{16}$/.test(cleanNid)) {
+      const msg = lang === 'rw' 
+        ? `Nimero y'indangamuntu igomba kuba igizwe n'imibare 16 neza! (Wanditsemo imibare ${cleanNid.length})` 
+        : `National ID must be exactly 16 digits! (You entered ${cleanNid.length} digits)`;
+      setNidError(msg);
+      alert(msg);
+      return;
+    }
+
+    // Condition 2: Phone number must be exactly 10 digits starting with 07
+    const cleanPhone = parentPhone.trim().replace(/\s/g, '');
+    if (!/^07\d{8}$/.test(cleanPhone)) {
+      const msg = lang === 'rw' 
+        ? `Nimero ya telefoni igomba kuba igizwe n'imibare 10 itangirwa na 07 (urugero: 0788123456)! (Wanditsemo imibare ${cleanPhone.length})` 
+        : `Phone number must be exactly 10 digits starting with 07 (e.g. 0788123456)! (You entered ${cleanPhone.length} digits)`;
+      setPhoneError(msg);
+      alert(msg);
       return;
     }
 
@@ -323,17 +352,56 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {lang === 'rw' ? 'Indangamuntu cyangwa O-Level Index No *' : 'National ID / S3 Candidate Index *'}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700">
+                    {lang === 'rw' ? 'Indangamuntu y\'Umunyeshuri (Imibare 16) *' : 'National ID (16 Digits) *'}
+                  </label>
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    nationalIdOrIndex.length === 16 
+                      ? 'bg-emerald-100 text-emerald-800' 
+                      : nationalIdOrIndex.length > 0 
+                      ? 'bg-amber-100 text-amber-800' 
+                      : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {nationalIdOrIndex.length} / 16
+                  </span>
+                </div>
                 <input
                   type="text"
                   required
+                  maxLength={16}
                   value={nationalIdOrIndex}
-                  onChange={(e) => setNationalIdOrIndex(e.target.value)}
-                  placeholder="urugero: 1200880193821092 cyangwa 0204/001/25"
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-slate-50 focus:bg-white"
+                  onChange={(e) => {
+                    const onlyNums = e.target.value.replace(/\D/g, '').slice(0, 16);
+                    setNationalIdOrIndex(onlyNums);
+                    if (onlyNums.length === 16) {
+                      setNidError('');
+                    }
+                  }}
+                  placeholder="1200880193821092"
+                  className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none font-mono transition-all ${
+                    nidError 
+                      ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500' 
+                      : nationalIdOrIndex.length === 16
+                      ? 'border-emerald-400 bg-emerald-50/30 focus:ring-2 focus:ring-emerald-500 text-emerald-900 font-bold'
+                      : 'border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500'
+                  }`}
                 />
+                {nidError ? (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                    <span>⚠</span> {nidError}
+                  </p>
+                ) : nationalIdOrIndex.length > 0 && nationalIdOrIndex.length < 16 ? (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    {lang === 'rw' 
+                      ? `Hasigaye imibare ${16 - nationalIdOrIndex.length} kugira ngo yuzure 16` 
+                      : `${16 - nationalIdOrIndex.length} digits remaining to reach 16`}
+                  </p>
+                ) : nationalIdOrIndex.length === 16 ? (
+                  <p className="text-[11px] text-emerald-600 font-semibold mt-1">
+                    {lang === 'rw' ? '✓ Nimero y\'indangamuntu yuzuye neza (Imibare 16)' : '✓ National ID complete (16 digits)'}
+                  </p>
+                ) : null}
               </div>
 
               <div>
@@ -518,17 +586,56 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {lang === 'rw' ? 'Numero ya Telefoni (SMS Alert) *' : 'Mobile Phone (for SMS Alerts) *'}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700">
+                    {lang === 'rw' ? 'Telefoni y\'Umubyeyi (Imibare 10) *' : 'Parent Phone (10 Digits) *'}
+                  </label>
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    /^07\d{8}$/.test(parentPhone) 
+                      ? 'bg-emerald-100 text-emerald-800' 
+                      : parentPhone.length > 0 
+                      ? 'bg-amber-100 text-amber-800' 
+                      : 'bg-slate-100 text-slate-500'
+                  }`}>
+                    {parentPhone.length} / 10
+                  </span>
+                </div>
                 <input
                   type="tel"
                   required
+                  maxLength={10}
                   value={parentPhone}
-                  onChange={(e) => setParentPhone(e.target.value)}
+                  onChange={(e) => {
+                    const onlyNums = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setParentPhone(onlyNums);
+                    if (/^07\d{8}$/.test(onlyNums)) {
+                      setPhoneError('');
+                    }
+                  }}
                   placeholder="0788123456"
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-slate-50 focus:bg-white font-mono"
+                  className={`w-full px-3 py-2 text-xs border rounded-lg focus:outline-none font-mono transition-all ${
+                    phoneError 
+                      ? 'border-rose-400 bg-rose-50/50 focus:ring-2 focus:ring-rose-500' 
+                      : /^07\d{8}$/.test(parentPhone)
+                      ? 'border-emerald-400 bg-emerald-50/30 focus:ring-2 focus:ring-emerald-500 text-emerald-900 font-bold'
+                      : 'border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500'
+                  }`}
                 />
+                {phoneError ? (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                    <span>⚠</span> {phoneError}
+                  </p>
+                ) : parentPhone.length > 0 && parentPhone.length < 10 ? (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    {lang === 'rw' 
+                      ? `Igomba gutangirwa na 07 (hasigaye imibare ${10 - parentPhone.length})` 
+                      : `Must start with 07 (${10 - parentPhone.length} digits remaining)`}
+                  </p>
+                ) : /^07\d{8}$/.test(parentPhone) ? (
+                  <p className="text-[11px] text-emerald-600 font-semibold mt-1">
+                    {lang === 'rw' ? '✓ Nimero yemewe (MTN / Airtel)' : '✓ Valid Rwandan mobile number'}
+                  </p>
+                ) : null}
               </div>
 
               <div>

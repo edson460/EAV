@@ -16,6 +16,9 @@ import { FinanceView } from './components/FinanceView';
 import { NotificationCenter } from './components/NotificationCenter';
 import { ReportsView } from './components/ReportsView';
 import { AdmissionLetterModal } from './components/AdmissionLetterModal';
+import { EditStudentModal } from './components/EditStudentModal';
+import { AuthModal, UserAccount } from './components/AuthModal';
+import { AuthScreen } from './components/AuthScreen';
 
 export default function App() {
   const [lang, setLang] = useState<'rw' | 'en'>('rw');
@@ -23,28 +26,184 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isSummaryModalOpen, setIsSummaryModalOpen] = useState<boolean>(false);
 
-  // State data
-  const [students, setStudents] = useState<StudentRecord[]>(INITIAL_STUDENTS);
-  const [dorms, setDorms] = useState<DormitoryBlock[]>(INITIAL_DORMS);
-  const [notifications, setNotifications] = useState<SmsNotification[]>(INITIAL_NOTIFICATIONS);
+  // If user is not logged in, auto-open the Login / Auth screen on launch
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(() => {
+    try {
+      return !localStorage.getItem('eav_gitwe_user');
+    } catch {
+      return true;
+    }
+  });
+
+  // Current logged in user (Staff account)
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    try {
+      const saved = localStorage.getItem('eav_gitwe_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const handleLogin = (user: UserAccount) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('eav_gitwe_user', JSON.stringify(user));
+    } catch {}
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    try {
+      localStorage.removeItem('eav_gitwe_user');
+    } catch {}
+  };
+
+  // State data with localStorage persistence
+  const [students, setStudents] = useState<StudentRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('eav_gitwe_students');
+      return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+    } catch {
+      return INITIAL_STUDENTS;
+    }
+  });
+
+  const [dorms, setDorms] = useState<DormitoryBlock[]>(() => {
+    try {
+      const saved = localStorage.getItem('eav_gitwe_dorms');
+      return saved ? JSON.parse(saved) : INITIAL_DORMS;
+    } catch {
+      return INITIAL_DORMS;
+    }
+  });
+
+  const [notifications, setNotifications] = useState<SmsNotification[]>(() => {
+    try {
+      const saved = localStorage.getItem('eav_gitwe_notifications');
+      return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
+    } catch {
+      return INITIAL_NOTIFICATIONS;
+    }
+  });
 
   // Selected student for Admission Letter modal
   const [letterStudent, setLetterStudent] = useState<StudentRecord | null>(null);
 
-  // Handlers
-  const handleAddStudent = (newStudent: StudentRecord) => {
-    setStudents(prev => [newStudent, ...prev]);
+  // Selected student for Edit / Update Modal
+  const [studentToEdit, setStudentToEdit] = useState<StudentRecord | null>(null);
+
+  // Sync to localStorage
+  const saveStudents = (newStudents: StudentRecord[]) => {
+    setStudents(newStudents);
+    try {
+      localStorage.setItem('eav_gitwe_students', JSON.stringify(newStudents));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleUpdateStudent = (updatedStudent: StudentRecord) => {
-    setStudents(prev => prev.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+  const handleDeleteStudent = async (studentId: string) => {
+    const updated = students.filter(s => s.id !== studentId);
+    saveStudents(updated);
+    try {
+      await fetch(`/api/students/${studentId}`, { method: 'DELETE' });
+    } catch (e) {
+      console.warn('Backend delete sync failed', e);
+    }
   };
 
-  const handleUpdateDorms = (updatedDorms: DormitoryBlock[]) => {
-    setDorms(updatedDorms);
+  const saveDorms = (newDorms: DormitoryBlock[]) => {
+    setDorms(newDorms);
+    try {
+      localStorage.setItem('eav_gitwe_dorms', JSON.stringify(newDorms));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSendSms = (phone: string, name: string, code: string, message: string) => {
+  const saveNotifications = (newNotifs: SmsNotification[]) => {
+    setNotifications(newNotifs);
+    try {
+      localStorage.setItem('eav_gitwe_notifications', JSON.stringify(newNotifs));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  // Fetch from backend API on mount if available
+  React.useEffect(() => {
+    fetch('/api/students')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          saveStudents(data.data);
+        }
+      })
+      .catch(() => {
+        // Fall back gracefully to localStorage or initialData
+      });
+
+    fetch('/api/dorms')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          saveDorms(data.data);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/sms')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          saveNotifications(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Handlers with Backend API Sync
+  const handleAddStudent = async (newStudent: StudentRecord) => {
+    saveStudents([newStudent, ...students]);
+    try {
+      await fetch('/api/students', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStudent),
+      });
+    } catch (e) {
+      console.warn('Backend sync failed, saved locally', e);
+    }
+  };
+
+  const handleUpdateStudent = async (updatedStudent: StudentRecord) => {
+    saveStudents(students.map(s => s.id === updatedStudent.id ? updatedStudent : s));
+    try {
+      await fetch(`/api/students/${updatedStudent.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedStudent),
+      });
+    } catch (e) {
+      console.warn('Backend sync failed, updated locally', e);
+    }
+  };
+
+  const handleUpdateDorms = async (updatedDorms: DormitoryBlock[]) => {
+    saveDorms(updatedDorms);
+    try {
+      await fetch('/api/dorms', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedDorms),
+      });
+    } catch (e) {
+      console.warn('Backend dorms sync failed', e);
+    }
+  };
+
+  const handleSendSms = async (phone: string, name: string, code: string, message: string) => {
     const newSms: SmsNotification = {
       id: `sms_${Date.now()}`,
       recipientPhone: phone,
@@ -56,7 +215,22 @@ export default function App() {
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
       status: 'delivered',
     };
-    setNotifications(prev => [newSms, ...prev]);
+    saveNotifications([newSms, ...notifications]);
+
+    try {
+      await fetch('/api/sms/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientPhone: phone,
+          recipientName: name,
+          studentCode: code,
+          message,
+        }),
+      });
+    } catch (e) {
+      console.warn('Backend SMS sync failed', e);
+    }
   };
 
   // If user searched for a student code or name from the top header search
@@ -69,17 +243,37 @@ export default function App() {
         s.nationalIdOrIndex.includes(searchQuery)
       );
 
+  // MANDATORY AUTH GATE: If user is not logged in, enforce registration & login before system access!
+  if (!currentUser) {
+    return (
+      <AuthScreen
+        lang={lang}
+        setLang={setLang}
+        onLoginSuccess={handleLogin}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-white">
       {/* Top Main Navigation Header */}
       <Header
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={(tab) => {
+          if (tab === 'login') {
+            setIsAuthModalOpen(true);
+          } else {
+            setActiveTab(tab);
+          }
+        }}
         lang={lang}
         setLang={setLang}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onOpenSummary={() => setIsSummaryModalOpen(true)}
+        currentUser={currentUser}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Container */}
@@ -122,6 +316,8 @@ export default function App() {
               setActiveTab('verification');
             }}
             onOpenLetter={(st) => setLetterStudent(st)}
+            onEditStudent={(st) => setStudentToEdit(st)}
+            onDeleteStudent={handleDeleteStudent}
           />
         )}
 
@@ -212,6 +408,25 @@ export default function App() {
       <AdmissionLetterModal
         student={letterStudent}
         onClose={() => setLetterStudent(null)}
+        lang={lang}
+      />
+
+      {/* Edit / Update Student Modal */}
+      <EditStudentModal
+        student={studentToEdit}
+        isOpen={!!studentToEdit}
+        onClose={() => setStudentToEdit(null)}
+        onSave={handleUpdateStudent}
+        onDelete={handleDeleteStudent}
+        lang={lang}
+      />
+
+      {/* Staff Authentication (Login / Register / Forgot Password) Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        onLogin={handleLogin}
         lang={lang}
       />
     </div>
